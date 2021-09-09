@@ -10,6 +10,18 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = builder.Environment.ApplicationName, Version = "v1" });
 });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Localhost",
+        builder =>
+        {
+            builder.WithOrigins ("http://localhost:3000")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
+
+await EnsureDb(connectionString);
 
 var app = builder.Build();
 
@@ -17,6 +29,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{builder.Environment.ApplicationName} v1"));
+    app.UseCors("Localhost");
 }
 
 app.MapGet("/todos", async (TodoDbContext db) =>
@@ -69,5 +82,12 @@ app.MapDelete("/todos/{id}", async (TodoDbContext db, int id) =>
 
     return Results.Ok();
 });
+
+async Task EnsureDb(string connectionString)
+{
+    var options = new DbContextOptionsBuilder<TodoDbContext>().UseSqlite(connectionString).Options;
+    using var db = new TodoDbContext(options);
+    await db.Database.MigrateAsync();
+}
 
 app.Run();
